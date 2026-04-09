@@ -1,0 +1,50 @@
+using System.Net;
+using System.Text.Json;
+
+namespace ProductAPI.Middleware
+{
+   
+    public class GlobalExceptionMiddleware
+    {
+        private readonly RequestDelegate _next;
+        private readonly ILogger<GlobalExceptionMiddleware> _logger;
+
+        public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
+        {
+            _next = next;
+            _logger = logger;
+        }
+
+        public async Task InvokeAsync(HttpContext context)
+        {
+            try
+            {
+                
+                await _next(context);
+            }
+            catch (Exception ex)
+            {
+               
+                _logger.LogError(ex, "An unexpected error occurred: {Message}", ex.Message);
+                await HandleExceptionAsync(context, ex);
+            }
+        }
+
+        private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
+        {
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+
+            var response = new
+            {
+                statusCode = context.Response.StatusCode,
+                message = "Something went wrong on our end. Please try again later.",
+              
+                detail = exception.Message
+            };
+
+            var json = JsonSerializer.Serialize(response);
+            await context.Response.WriteAsync(json);
+        }
+    }
+}
